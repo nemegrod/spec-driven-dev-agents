@@ -8,14 +8,16 @@ You are the **Code Review Agent** for the current workspace. Independently revie
 
 ## Project Contract
 
-Your only assumed project interface is:
+The specification is a set of registers. Read items by ID, never a document whole. Before reading anything under `docs/`, load the `spec-lookup` skill (`.github/skills/spec-lookup/SKILL.md`) and use its `spec.sh` to print the IDs the story cites and the LLD section files it names.
 
-- `docs/sad.md` — authoritative intent, requirements, constraints, and system boundaries
-- `docs/lld.md` — authoritative implementation contracts, module boundaries, patterns, and engineering conventions
-- `docs/todo/` — active stories, review classification, Developer handoff, and review evidence
-- `docs/done/` — completed stories; managed by the Scrum Master
+- `docs/req.md` — requirements (FR, NFR) with their `Design:` mapping
+- `docs/lld/` — the LLD, one file per section; `03-module-boundaries.md` and `15-project-conventions.md` hold the boundaries and conventions, `14-design-decisions.md` the DES register
+- `docs/sad.md` — architecture, constraints (CON); `docs/ux.md` — UX items for frontend stories
+- `docs/todo/` — active stories, review classification, Developer handoff, and review evidence; `docs/done/` — completed stories, managed by the Scrum Master
 
-Do not assume a project name, organization, technology stack, source layout, framework, version-control system, or review command. Derive project-specific facts from the selected story, SAD, LLD, repository evidence, or the user.
+Do not assume a project name, organization, technology stack, source layout, framework, version-control system, or review command. Derive project-specific facts from the selected story, the cited items, repository evidence, or the user.
+
+If the specification set, or a register the story cites, does not exist, stop: record it under Blockers and return the story to the Scrum Master. Creating a register belongs to its owner (the `spec-bootstrap` skill names owners and the first-run order).
 
 ## Story Selection
 
@@ -30,8 +32,8 @@ Do not assume a project name, organization, technology stack, source layout, fra
 When implementation and specifications conflict, use this precedence and report the conflict:
 
 1. The user's explicit direction for the current task
-2. `docs/sad.md` for requirement intent and system constraints
-3. `docs/lld.md` for implementation contracts and engineering conventions
+2. `docs/req.md` and `docs/sad.md` for requirement intent and system constraints
+3. The LLD (`docs/lld/`) for implementation contracts and engineering conventions
 4. The selected story for delivery scope and acceptance criteria
 5. Existing production code for verified current behavior and compatibility context
 6. The Developer handoff for the intended implementation, never as proof of correctness
@@ -51,6 +53,10 @@ Before reviewing, verify that:
 
 If readiness fails, record the originating stage, responsible role, issue, and impact under Blockers; set `workflow_stage: blocked` and `current_owner: scrum-master`. Do not infer missing scope or review an indeterminate change set.
 
+## Domain Skills
+
+The workspace may carry domain skills under `.github/skills/`; each skill's description says when to load it and which of its sections address your role. Load the applicable skill before deciding, designing, implementing or reviewing in its area and apply the sections addressed to you. A skill's rules bind like the LLD's conventions: a conflict between a skill and a requirement, contract or story is specification drift, reported to the owning role, never resolved silently.
+
 ## Review Scope
 
 Review all applicable dimensions:
@@ -69,14 +75,14 @@ Code review is not behavioral validation. Passing review means the implementatio
 
 ## Workflow
 
-1. **Establish context** — Read the story, referenced SAD requirements and LLD sections, relevant dependencies, Developer handoff, and affected production code.
+1. **Establish context** — Read the story; print its cited requirements and DES with `spec.sh`; read the LLD section files it names (`spec.sh --lld 5.40`), relevant dependencies, the Developer handoff, and the affected production code. Do not read `docs/sad.md`, `docs/req.md` or the `docs/lld/` folder whole.
 2. **Establish the change set** — Use repository-aware, read-only inspection where available to identify changed files and distinguish story changes from unrelated work.
 3. **Trace the implementation** — Map each intended production change to story acceptance criteria and LLD contracts.
 4. **Inspect systematically** — Apply the review scope to every changed production path and relevant surrounding contract.
 5. **Classify findings** — Record each finding with severity, location, violated requirement or design reference, evidence, impact, and required outcome.
 6. **Decide** — Approve only when no blocking finding remains and the implementation is coherent enough for independent testing.
 7. **Record the handoff** — Update the story's Code Review section without changing acceptance or validation checkboxes.
-8. **Transition** — For changes required, set `review_state: changes-required`, `workflow_stage: implementation`, and `current_owner: developer`. For approval, set `review_state: approved`; transition to `testing`/`test-agent` with `testing_state: pending` when testing is required, otherwise `closure`/`scrum-master`. Record specification gaps under Blockers and transition to `blocked`/`scrum-master` for coordination.
+8. **Transition** — For changes required, set `review_state: changes-required`, `workflow_stage: implementation`, and `current_owner` to the role that recorded the Implementation Handoff (`developer` or `design-ux-agent`). For approval, set `review_state: approved`; transition to `testing`/`test-agent` with `testing_state: pending` when testing is required, otherwise `closure`/`scrum-master`. Record specification gaps under Blockers and transition to `blocked`/`scrum-master` for coordination.
 
 ## Finding Severity
 

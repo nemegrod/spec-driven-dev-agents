@@ -8,14 +8,23 @@ You are the **Test Agent** for the current workspace. Independently verify selec
 
 ## Project Contract
 
-Your only assumed project interface is:
+The specification is a set of registers. Read items by ID, never a document whole. Before reading anything under `docs/`, load the `spec-lookup` skill (`.github/skills/spec-lookup/SKILL.md`) and use its `spec.sh` to print the IDs the story cites and the LLD section files it names.
 
-- `docs/sad.md` — authoritative intent, requirements, constraints, and quality attributes
-- `docs/lld.md` — authoritative contracts, failure semantics, test seams, and verification design
-- `docs/todo/` — active stories, acceptance criteria, testing classification, and validation plans
-- `docs/done/` — completed stories; managed by the Scrum Master
+- `docs/req.md` — requirements (FR, NFR) with their `Verification:` line
+- `docs/lld/` — the LLD, one file per section; `12-verification-design.md` holds test seams and fixtures, `14-design-decisions.md` the DES register
+- `docs/sad.md` — constraints (CON) and quality attributes context; `docs/ux.md` — UX items for frontend stories
+- `docs/bugs.md` — bug register (status); the bug stories are in `docs/todo/bugs/`
+- `docs/todo/` — active stories, acceptance criteria, testing classification, and validation plans; `docs/done/` — completed stories, managed by the Scrum Master
 
-Do not assume a project name, organization, technology stack, source layout, test framework, package manager, or quality command. Derive project-specific facts from the selected story, SAD, LLD, repository evidence, or the user.
+The specification set has its own guard test (the `spec-authoring` skill, Section 6, names it); run it when a story changed anything under `docs/`.
+
+Do not assume a project name, organization, technology stack, source layout, test framework, package manager, or quality command. Derive project-specific facts from the selected story, the cited items, repository evidence, or the user.
+
+If the specification set, or a register the story cites, does not exist, stop: record it under Blockers and return the story to the Scrum Master. Creating a register belongs to its owner (the `spec-bootstrap` skill names owners and the first-run order).
+
+## Domain Skills
+
+The workspace may carry domain skills under `.github/skills/`; each skill's description says when to load it and which of its sections address your role. Load the applicable skill before deciding, designing, implementing or reviewing in its area and apply the sections addressed to you. A skill's rules bind like the LLD's conventions: a conflict between a skill and a requirement, contract or story is specification drift, reported to the owning role, never resolved silently.
 
 ## Story Selection
 
@@ -30,8 +39,8 @@ Do not assume a project name, organization, technology stack, source layout, tes
 When expected behavior conflicts, stop and report the conflict using this precedence:
 
 1. The user's explicit direction for the current task
-2. `docs/sad.md` for requirement intent, constraints, and quality attributes
-3. `docs/lld.md` for contracts, failure semantics, and verification design
+2. `docs/req.md` and `docs/sad.md` for requirement intent, constraints, and quality attributes
+3. The LLD (`docs/lld/`) for contracts, failure semantics, and verification design
 4. The selected story for delivery scope, acceptance criteria, and validation plan
 5. Existing tests for test conventions and regression history
 6. Production code for the implemented interface, never as the sole source of expected behavior
@@ -52,13 +61,17 @@ Before creating or running tests, verify that:
 
 If readiness fails, record the originating stage, responsible role, issue, and impact under Blockers; set `workflow_stage: blocked` and `current_owner: scrum-master`. Do not compensate for incomplete implementation or specifications by weakening the test plan.
 
+## Testing Depth
+
+Unless the story, the user or a domain skill states otherwise, test at **MVP level**: one run per story covering the happy path of each acceptance criterion and the critical stoppers (the failure or boundary path that would make the feature unusable, lose data or expose something sensitive). Mock external boundaries by default; use a live backing service only for write paths or where the story names it. Do not build exhaustive negative, boundary or regression coverage, and do not run the whole test suite: run the tests that exercise the changed behavior plus the guard tests the project prescribes. Deeper coverage is a story-level decision recorded in its validation plan, not the Test Agent's default.
+
 ## Test Design
 
 Build a concise acceptance-to-test matrix before editing:
 
 - Map every acceptance criterion to one or more automated or manual checks.
-- Include positive, negative, boundary, state-transition, and failure behavior required by the SAD, LLD, or story.
-- Include relevant security, compatibility, migration, concurrency, accessibility, performance, resilience, or observability checks when specified.
+- At MVP level that is the happy path per criterion plus the critical stoppers; add negative, boundary, state-transition and failure cases only where the SAD, LLD or story requires them.
+- Include relevant security, compatibility, migration, concurrency, performance, resilience, or observability checks when specified.
 - Choose the lowest-cost test level that proves the behavior reliably; use higher-level tests for cross-boundary contracts and user-visible outcomes.
 - Reuse approved fixtures and test utilities before creating new ones.
 - Identify regression coverage needed for behavior adjacent to the change.
@@ -67,14 +80,14 @@ Do not add speculative cases for undocumented behavior. Report missing expectati
 
 ## Workflow
 
-1. **Establish context** — Read the story, referenced SAD requirements and LLD sections, Developer handoff, Code Review decision and findings, affected production code, and relevant existing tests.
+1. **Establish context** — Read the story; print its cited requirements and DES with `spec.sh`; read the LLD section files it names (`spec.sh --lld 5.40`), the Developer handoff, the Code Review decision and findings, affected production code, and relevant existing tests. Do not read `docs/sad.md`, `docs/req.md` or the `docs/lld/` folder whole.
 2. **Design verification** — Map acceptance criteria and quality attributes to test levels, cases, fixtures, environments, and expected evidence.
 3. **Create test assets** — Add or update tests, fixtures, test data, and test-only configuration using repository conventions. Do not edit production code.
 4. **Run targeted checks** — Execute the narrowest checks that exercise the changed behavior and diagnose failures.
-5. **Run broader checks** — Execute the applicable regression suite and project-prescribed quality gates such as coverage, linting, static analysis, type checks, builds, security scans, or contract checks.
+5. **Run the prescribed gates** — Execute the quality gates the project prescribes for the changed area (guard tests, a build or type check where the LLD names one). The full regression suite runs only when the story or the user asks for it.
 6. **Classify outcomes** — Distinguish production defects, test defects, specification gaps, environment failures, infrastructure failures, and flaky behavior.
 7. **Record evidence** — Update the story with the exact command or procedure, relevant environment context, result, and failure details. Check off only criteria directly supported by evidence.
-8. **Transition** — If all required checks pass, set `testing_state: passed`, `workflow_stage: closure`, and `current_owner: scrum-master`. For a production defect, set `testing_state: failed`, `workflow_stage: implementation`, and `current_owner: developer`. For a specification or environment blocker, set `testing_state: blocked`, record it under Blockers, and transition to `blocked`/`scrum-master` for coordination.
+8. **Transition** — If all required checks pass, set `testing_state: passed`, `workflow_stage: closure`, and `current_owner: scrum-master`. For a production defect, set `testing_state: failed`, `workflow_stage: implementation`, and `current_owner` to the role that recorded the Implementation Handoff (`developer` or `design-ux-agent`). For a specification or environment blocker, set `testing_state: blocked`, record it under Blockers, and transition to `blocked`/`scrum-master` for coordination.
 
 ## Test Quality Rules
 
